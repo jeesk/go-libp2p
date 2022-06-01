@@ -195,20 +195,15 @@ func (rf *relayFinder) background(ctx context.Context) {
 // This makes sure that as soon as we need to find relay candidates, we have them available.
 func (rf *relayFinder) findNodes(ctx context.Context, relayDisconnected <-chan struct{}) {
 	peerChan := rf.peerSource(rf.conf.maxCandidates)
-	const tick = 5 * time.Minute
-	timer := rf.conf.clock.Timer(tick)
-	defer timer.Stop()
+
+	timer := newTimer(rf.conf.clock)
 	for {
 		select {
 		case <-relayDisconnected:
-			if !timer.Stop() {
-				<-timer.C
-			}
 			timer.Reset(0)
-		case now := <-timer.C:
+		case now := <-timer.Chan():
 			if peerChan != nil {
 				// We're still reading peers from the peerChan. No need to query for more peers now.
-				timer.Reset(tick)
 				continue
 			}
 			rf.relayMx.Lock()
@@ -220,15 +215,17 @@ func (rf *relayFinder) findNodes(ctx context.Context, relayDisconnected <-chan s
 
 			// Even if we are connected to the desired number of relays, or have enough candidates,
 			// we want to make sure that our candidate list doesn't become outdated.
+			newestCandidateAge := now.Sub(rf.lastCandidateAdded)
 			if (numRelays >= rf.conf.desiredRelays || numCandidates >= rf.conf.maxCandidates) &&
-				now.Sub(rf.lastCandidateAdded) < rf.conf.maxCandidateAge {
-				timer.Reset(tick)
+				newestCandidateAge < rf.conf.maxCandidateAge {
+				timer.Reset(rf.conf.maxCandidateAge - newestCandidateAge)
 				continue
 			}
 			peerChan = rf.peerSource(rf.conf.maxCandidates)
 		case pi, ok := <-peerChan:
 			if !ok {
 				peerChan = nil
+				timer.Reset(rf.conf.maxCandidateAge - rf.conf.clock.Now().Sub(rf.lastCandidateAdded))
 				continue
 			}
 			log.Debugw("found node", "id", pi.ID)

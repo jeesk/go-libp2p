@@ -327,6 +327,7 @@ func (ids *idService) IdentifyWait(c network.Conn) <-chan struct{} {
 		go func() {
 			defer close(wait)
 			if err := ids.identifyConn(c); err != nil {
+				log.Warnf("failed to identify %s: %s", c.RemotePeer(), err)
 				ids.emitters.evtPeerIdentificationFailed.Emit(event.EvtPeerIdentificationFailed{Peer: c.RemotePeer(), Reason: err})
 				return
 			}
@@ -814,7 +815,5 @@ func (nn *netNotifiee) Disconnected(n network.Network, v network.Conn) {
 	}
 }
 
-func (nn *netNotifiee) OpenedStream(n network.Network, v network.Stream) {}
-func (nn *netNotifiee) ClosedStream(n network.Network, v network.Stream) {}
-func (nn *netNotifiee) Listen(n network.Network, a ma.Multiaddr)         {}
-func (nn *netNotifiee) ListenClose(n network.Network, a ma.Multiaddr)    {}
+func (nn *netNotifiee) Listen(n network.Network, a ma.Multiaddr)      {}
+func (nn *netNotifiee) ListenClose(n network.Network, a ma.Multiaddr) {}

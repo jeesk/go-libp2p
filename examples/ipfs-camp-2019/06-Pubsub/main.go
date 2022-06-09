@@ -12,14 +12,16 @@ import (
 	"github.com/libp2p/go-libp2p-core/network"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/libp2p/go-libp2p-core/routing"
-	disc "github.com/libp2p/go-libp2p-discovery"
 	kaddht "github.com/libp2p/go-libp2p-kad-dht"
-	mplex "github.com/libp2p/go-libp2p-mplex"
-	tls "github.com/libp2p/go-libp2p-tls"
-	yamux "github.com/libp2p/go-libp2p-yamux"
 	"github.com/libp2p/go-libp2p/p2p/discovery/mdns"
-	"github.com/libp2p/go-tcp-transport"
-	ws "github.com/libp2p/go-ws-transport"
+	drouting "github.com/libp2p/go-libp2p/p2p/discovery/routing"
+	dutil "github.com/libp2p/go-libp2p/p2p/discovery/util"
+	"github.com/libp2p/go-libp2p/p2p/muxer/mplex"
+	"github.com/libp2p/go-libp2p/p2p/muxer/yamux"
+	tls "github.com/libp2p/go-libp2p/p2p/security/tls"
+	"github.com/libp2p/go-libp2p/p2p/transport/tcp"
+	"github.com/libp2p/go-libp2p/p2p/transport/websocket"
+
 	"github.com/multiformats/go-multiaddr"
 )
 
@@ -41,7 +43,7 @@ func main() {
 
 	transports := libp2p.ChainOptions(
 		libp2p.Transport(tcp.NewTCPTransport),
-		libp2p.Transport(ws.New),
+		libp2p.Transport(websocket.New),
 	)
 
 	muxers := libp2p.ChainOptions(
@@ -111,9 +113,9 @@ func main() {
 		panic(err)
 	}
 
-	routingDiscovery := disc.NewRoutingDiscovery(dht)
-	disc.Advertise(ctx, routingDiscovery, string(chatProtocol))
-	peers, err := disc.FindPeers(ctx, routingDiscovery, string(chatProtocol))
+	routingDiscovery := drouting.NewRoutingDiscovery(dht)
+	dutil.Advertise(ctx, routingDiscovery, string(chatProtocol))
+	peers, err := dutil.FindPeers(ctx, routingDiscovery, string(chatProtocol))
 	if err != nil {
 		panic(err)
 	}

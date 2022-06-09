@@ -2,14 +2,14 @@ package main
 
 import (
 	"github.com/libp2p/go-libp2p"
-	"github.com/libp2p/go-tcp-transport"
-	ws "github.com/libp2p/go-ws-transport"
+	"github.com/libp2p/go-libp2p/p2p/transport/tcp"
+	"github.com/libp2p/go-libp2p/p2p/transport/websocket"
 )
 
 func main() {
 	transports := libp2p.ChainOptions(
 		libp2p.Transport(tcp.NewTCPTransport),
-		libp2p.Transport(ws.New),
+		libp2p.Transport(websocket.New),
 	)
 
 	// TODO: add some listen addresses with the libp2p.ListenAddrs or

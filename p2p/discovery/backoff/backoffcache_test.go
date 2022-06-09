@@ -3,7 +3,6 @@ package backoff
 import (
 	"context"
 	"math/rand"
-	"os"
 	"testing"
 	"time"
 
@@ -13,18 +12,14 @@ import (
 
 	"github.com/libp2p/go-libp2p-core/discovery"
 	"github.com/libp2p/go-libp2p-core/peer"
-)
 
-func scaleDuration(t time.Duration) time.Duration {
-	if os.Getenv("CI") != "" {
-		return 3 * t
-	}
-	return t
-}
+	mockClock "github.com/benbjohnson/clock"
+)
 
 type delayedDiscovery struct {
 	disc  discovery.Discovery
 	delay time.Duration
+	clock *mockClock.Mock
 }
 
 func (d *delayedDiscovery) Advertise(ctx context.Context, ns string, opts ...discovery.Option) (time.Duration, error) {
@@ -38,11 +33,25 @@ func (d *delayedDiscovery) FindPeers(ctx context.Context, ns string, opts ...dis
 	}
 
 	ch := make(chan peer.AddrInfo, 32)
+	doneCh := make(chan struct{})
 	go func() {
 		defer close(ch)
+		defer close(doneCh)
 		for ai := range dch {
 			ch <- ai
-			time.Sleep(d.delay)
+			d.clock.Sleep(d.delay)
+		}
+	}()
+
+	// Tick the clock forward to advance the sleep above
+	go func() {
+		for {
+			select {
+			case <-doneCh:
+				return
+			default:
+				d.clock.Add(d.delay)
+			}
 		}
 	}()
 
@@ -75,7 +84,8 @@ func TestBackoffDiscoverySingleBackoff(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	discServer := mocks.NewDiscoveryServer()
+	clock := mockClock.NewMock()
+	discServer := mocks.NewDiscoveryServer(clock)
 
 	h1 := bhost.NewBlankHost(swarmt.GenSwarm(t))
 	defer h1.Close()
@@ -85,15 +95,15 @@ func TestBackoffDiscoverySingleBackoff(t *testing.T) {
 	d2 := mocks.NewDiscoveryClient(h2, discServer)
 
 	bkf := NewExponentialBackoff(
-		scaleDuration(time.Millisecond*100),
-		scaleDuration(time.Second*10),
+		time.Millisecond*100,
+		time.Second*10,
 		NoJitter,
-		scaleDuration(time.Millisecond*100),
+		time.Millisecond*100,
 		2.5,
 		0,
 		rand.NewSource(0),
 	)
-	dCache, err := NewBackoffDiscovery(d1, bkf)
+	dCache, err := NewBackoffDiscovery(d1, bkf, withClock(clock))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -102,22 +112,27 @@ func TestBackoffDiscoverySingleBackoff(t *testing.T) {
 
 	// try adding a peer then find it
 	d1.Advertise(ctx, ns, discovery.TTL(time.Hour))
+	// Advance clock by one step
+	clock.Add(1)
 	assertNumPeers(t, ctx, dCache, ns, 1)
 
 	// add a new peer and make sure it is still hidden by the caching layer
 	d2.Advertise(ctx, ns, discovery.TTL(time.Hour))
+	// Advance clock by one step
+	clock.Add(1)
 	assertNumPeers(t, ctx, dCache, ns, 1)
 
 	// wait for cache to expire and check for the new peer
-	time.Sleep(scaleDuration(time.Millisecond * 110))
+	clock.Add(time.Millisecond * 110)
 	assertNumPeers(t, ctx, dCache, ns, 2)
 }
 
 func TestBackoffDiscoveryMultipleBackoff(t *testing.T) {
+	clock := mockClock.NewMock()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	discServer := mocks.NewDiscoveryServer()
+	discServer := mocks.NewDiscoveryServer(clock)
 
 	h1 := bhost.NewBlankHost(swarmt.GenSwarm(t))
 	defer h1.Close()
@@ -128,15 +143,15 @@ func TestBackoffDiscoveryMultipleBackoff(t *testing.T) {
 
 	// Startup delay is 0ms. First backoff after finding data is 100ms, second backoff is 250ms.
 	bkf := NewExponentialBackoff(
-		scaleDuration(time.Millisecond*100),
-		scaleDuration(time.Second*10),
+		time.Millisecond*100,
+		time.Second*10,
 		NoJitter,
-		scaleDuration(time.Millisecond*100),
+		time.Millisecond*100,
 		2.5,
 		0,
 		rand.NewSource(0),
 	)
-	dCache, err := NewBackoffDiscovery(d1, bkf)
+	dCache, err := NewBackoffDiscovery(d1, bkf, withClock(clock))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -144,28 +159,30 @@ func TestBackoffDiscoveryMultipleBackoff(t *testing.T) {
 	const ns = "test"
 
 	// try adding a peer then find it
-	d1.Advertise(ctx, ns, discovery.TTL(scaleDuration(time.Hour)))
+	d1.Advertise(ctx, ns, discovery.TTL(time.Hour))
+	// Advance clock by one step
+	clock.Add(1)
 	assertNumPeers(t, ctx, dCache, ns, 1)
 
 	// wait a little to make sure the extra request doesn't modify the backoff
-	time.Sleep(scaleDuration(time.Millisecond * 50)) // 50 < 100
+	clock.Add(time.Millisecond * 50) // 50 < 100
 	assertNumPeers(t, ctx, dCache, ns, 1)
 
 	// wait for backoff to expire and check if we increase it
-	time.Sleep(scaleDuration(time.Millisecond * 60)) // 50+60 > 100
+	clock.Add(time.Millisecond * 60) // 50+60 > 100
 	assertNumPeers(t, ctx, dCache, ns, 1)
 
-	d2.Advertise(ctx, ns, discovery.TTL(scaleDuration(time.Millisecond*400)))
+	d2.Advertise(ctx, ns, discovery.TTL(time.Millisecond*400))
 
-	time.Sleep(scaleDuration(time.Millisecond * 150)) // 150 < 250
+	clock.Add(time.Millisecond * 150) // 150 < 250
 	assertNumPeers(t, ctx, dCache, ns, 1)
 
-	time.Sleep(scaleDuration(time.Millisecond * 150)) // 150 + 150 > 250
+	clock.Add(time.Millisecond * 150) // 150 + 150 > 250
 	assertNumPeers(t, ctx, dCache, ns, 2)
 
 	// check that the backoff has been reset
 	// also checks that we can decrease our peer count (i.e. not just growing a set)
-	time.Sleep(scaleDuration(time.Millisecond * 110)) // 110 > 100, also 150+150+110>400
+	clock.Add(time.Millisecond * 110) // 110 > 100, also 150+150+110>400
 	assertNumPeers(t, ctx, dCache, ns, 1)
 }
 
@@ -173,7 +190,8 @@ func TestBackoffDiscoverySimultaneousQuery(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	discServer := mocks.NewDiscoveryServer()
+	clock := mockClock.NewMock()
+	discServer := mocks.NewDiscoveryServer(clock)
 
 	// Testing with n larger than most internal buffer sizes (32)
 	n := 40
@@ -185,10 +203,10 @@ func TestBackoffDiscoverySimultaneousQuery(t *testing.T) {
 		advertisers[i] = mocks.NewDiscoveryClient(h, discServer)
 	}
 
-	d1 := &delayedDiscovery{advertisers[0], scaleDuration(time.Millisecond * 10)}
+	d1 := &delayedDiscovery{advertisers[0], time.Millisecond * 10, clock}
 
-	bkf := NewFixedBackoff(scaleDuration(time.Millisecond * 200))
-	dCache, err := NewBackoffDiscovery(d1, bkf)
+	bkf := NewFixedBackoff(time.Millisecond * 200)
+	dCache, err := NewBackoffDiscovery(d1, bkf, withClock(clock))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -200,6 +218,8 @@ func TestBackoffDiscoverySimultaneousQuery(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
+	// Advance clock by one step
+	clock.Add(1)
 
 	ch1, err := dCache.FindPeers(ctx, ns)
 	if err != nil {
@@ -232,7 +252,8 @@ func TestBackoffDiscoveryCacheCapacity(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	discServer := mocks.NewDiscoveryServer()
+	clock := mockClock.NewMock()
+	discServer := mocks.NewDiscoveryServer(clock)
 
 	// Testing with n larger than most internal buffer sizes (32)
 	n := 40
@@ -247,10 +268,10 @@ func TestBackoffDiscoveryCacheCapacity(t *testing.T) {
 	h1 := bhost.NewBlankHost(swarmt.GenSwarm(t))
 	d1 := mocks.NewDiscoveryClient(h1, discServer)
 
-	discoveryInterval := scaleDuration(time.Millisecond * 10)
+	discoveryInterval := time.Millisecond * 10
 
 	bkf := NewFixedBackoff(discoveryInterval)
-	dCache, err := NewBackoffDiscovery(d1, bkf)
+	dCache, err := NewBackoffDiscovery(d1, bkf, withClock(clock))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -261,6 +282,8 @@ func TestBackoffDiscoveryCacheCapacity(t *testing.T) {
 	for i := 0; i < n; i++ {
 		advertisers[i].Advertise(ctx, ns, discovery.TTL(time.Hour))
 	}
+	// Advance clock by one step
+	clock.Add(1)
 
 	// Request all peers, all will be present
 	assertNumPeersWithLimit(t, ctx, dCache, ns, n, n)
@@ -269,7 +292,7 @@ func TestBackoffDiscoveryCacheCapacity(t *testing.T) {
 	assertNumPeersWithLimit(t, ctx, dCache, ns, n-1, n-1)
 
 	// Wait a little time but don't allow cache to expire
-	time.Sleep(discoveryInterval / 10)
+	clock.Add(discoveryInterval / 10)
 
 	// Request peers with a lower limit this time using cache
 	// Here we are testing that the cache logic does not block when there are more peers known than the limit requested
@@ -277,7 +300,7 @@ func TestBackoffDiscoveryCacheCapacity(t *testing.T) {
 	assertNumPeersWithLimit(t, ctx, dCache, ns, n-1, n-1)
 
 	// Wait for next discovery so next request will bypass cache
-	time.Sleep(scaleDuration(time.Millisecond * 100))
+	clock.Add(time.Millisecond * 100)
 
 	// Ask for all peers again
 	assertNumPeersWithLimit(t, ctx, dCache, ns, n, n)

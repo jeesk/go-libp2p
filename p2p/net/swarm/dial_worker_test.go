@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	msmux "github.com/libp2p/go-libp2p/p2p/muxer/muxer-multistream"
 	"github.com/libp2p/go-libp2p/p2p/muxer/yamux"
 	csms "github.com/libp2p/go-libp2p/p2p/net/conn-security-multistream"
 	tptu "github.com/libp2p/go-libp2p/p2p/net/upgrader"
@@ -20,7 +21,6 @@ import (
 
 	"github.com/libp2p/go-libp2p-peerstore/pstoremem"
 	tnet "github.com/libp2p/go-libp2p-testing/net"
-	msmux "github.com/libp2p/go-stream-muxer-multistream"
 	ma "github.com/multiformats/go-multiaddr"
 
 	"github.com/stretchr/testify/require"
@@ -84,7 +84,8 @@ func TestDialWorkerLoopBasic(t *testing.T) {
 	defer s1.Close()
 	defer s2.Close()
 
-	s1.Peerstore().AddAddrs(s2.LocalPeer(), s2.ListenAddresses(), peerstore.PermanentAddrTTL)
+	// Only pass in a single address here, otherwise we might end up with a TCP and QUIC connection dialed.
+	s1.Peerstore().AddAddrs(s2.LocalPeer(), []ma.Multiaddr{s2.ListenAddresses()[0]}, peerstore.PermanentAddrTTL)
 
 	reqch := make(chan dialRequest)
 	resch := make(chan dialResponse)
@@ -97,7 +98,7 @@ func TestDialWorkerLoopBasic(t *testing.T) {
 	case res := <-resch:
 		require.NoError(t, res.err)
 		conn = res.conn
-	case <-time.After(time.Minute):
+	case <-time.After(10 * time.Second):
 		t.Fatal("dial didn't complete")
 	}
 
@@ -111,13 +112,13 @@ func TestDialWorkerLoopBasic(t *testing.T) {
 	case res := <-resch:
 		require.NoError(t, res.err)
 		conn2 = res.conn
-	case <-time.After(time.Minute):
+	case <-time.After(10 * time.Second):
 		t.Fatal("dial didn't complete")
 	}
 
 	// can't use require.Equal here, as this does a deep comparison
 	if conn != conn2 {
-		t.Fatal("expecting the same connection from both dials")
+		t.Fatalf("expecting the same connection from both dials. %s <-> %s vs. %s <-> %s", conn.LocalMultiaddr(), conn.RemoteMultiaddr(), conn2.LocalMultiaddr(), conn2.RemoteMultiaddr())
 	}
 
 	close(reqch)
@@ -288,7 +289,7 @@ func TestDialWorkerLoopConcurrentFailureStress(t *testing.T) {
 	p2 := tnet.RandPeerNetParamsOrFatal(t)
 
 	var addrs []ma.Multiaddr
-	for i := 0; i < 200; i++ {
+	for i := 0; i < 16; i++ {
 		addrs = append(addrs, ma.StringCast(fmt.Sprintf("/ip4/11.0.0.%d/tcp/%d", i%256, 1234+i)))
 	}
 	s1.Peerstore().AddAddrs(p2.ID, addrs, peerstore.PermanentAddrTTL)
@@ -309,8 +310,9 @@ func TestDialWorkerLoopConcurrentFailureStress(t *testing.T) {
 			reqch <- dialRequest{ctx: context.Background(), resch: reschgo}
 			select {
 			case res := <-reschgo:
+				t.Log("received result")
 				resch <- res
-			case <-time.After(5 * time.Minute):
+			case <-time.After(15 * time.Second):
 				resch <- dialResponse{err: errTimeout}
 			}
 		}()

@@ -6,14 +6,15 @@ import (
 	"log"
 	"time"
 
+	"github.com/libp2p/go-libp2p/p2p/net/connmgr"
+
 	"github.com/libp2p/go-libp2p"
-	connmgr "github.com/libp2p/go-libp2p-connmgr"
 	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/routing"
 	dht "github.com/libp2p/go-libp2p-kad-dht"
-	noise "github.com/libp2p/go-libp2p-noise"
-	libp2ptls "github.com/libp2p/go-libp2p-tls"
+	"github.com/libp2p/go-libp2p/p2p/security/noise"
+	libp2ptls "github.com/libp2p/go-libp2p/p2p/security/tls"
 )
 
 func main() {
@@ -48,6 +49,14 @@ func run() {
 
 	var idht *dht.IpfsDHT
 
+	connmgr, err := connmgr.NewConnManager(
+		100, // Lowwater
+		400, // HighWater,
+		connmgr.WithGracePeriod(time.Minute),
+	)
+	if err != nil {
+		panic(err)
+	}
 	h2, err := libp2p.New(
 		// Use the keypair we generated
 		libp2p.Identity(priv),
@@ -64,11 +73,7 @@ func run() {
 		libp2p.DefaultTransports,
 		// Let's prevent our peer from having too many
 		// connections by attaching a connection manager.
-		libp2p.ConnectionManager(connmgr.NewConnManager(
-			100,         // Lowwater
-			400,         // HighWater,
-			time.Minute, // GracePeriod
-		)),
+		libp2p.ConnectionManager(connmgr),
 		// Attempt to open ports using uPNP for NATed hosts.
 		libp2p.NATPortMap(),
 		// Let this host use the DHT to find other hosts

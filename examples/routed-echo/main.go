@@ -110,7 +110,7 @@ func main() {
 	listenF := flag.Int("l", 0, "wait for incoming connections")
 	target := flag.String("d", "", "target peer to dial")
 	seed := flag.Int64("seed", 0, "set random seed for id generation")
-	global := flag.Bool("global", false, "use global ipfs peers for bootstrapping")
+	global := flag.Bool("global", true, "use global ipfs peers for bootstrapping")
 	flag.Parse()
 
 	if *listenF == 0 {

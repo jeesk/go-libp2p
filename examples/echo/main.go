@@ -23,6 +23,7 @@ import (
 )
 
 func main() {
+
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -32,7 +33,7 @@ func main() {
 	golog.SetAllLoggers(golog.LevelInfo) // Change to INFO for extra info
 
 	// Parse options from the command line
-	listenF := flag.Int("l", 0, "wait for incoming connections")
+	listenF := flag.Int("l", 10000, "wait for incoming connections")
 	targetF := flag.String("d", "", "target peer to dial")
 	insecureF := flag.Bool("insecure", false, "use an unencrypted connection")
 	seedF := flag.Int64("seed", 0, "set random seed for id generation")
@@ -43,17 +44,17 @@ func main() {
 	}
 
 	// Make a host that listens on the given multiaddress
-	ha, err := makeBasicHost(*listenF, *insecureF, *seedF)
+	host, err := makeBasicHost(*listenF, *insecureF, *seedF)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	if *targetF == "" {
-		startListener(ctx, ha, *listenF, *insecureF)
+		startListener(ctx, host, *listenF, *insecureF)
 		// Run until canceled.
 		<-ctx.Done()
 	} else {
-		runSender(ctx, ha, *targetF)
+		runSender(ctx, host, *targetF)
 	}
 }
 
@@ -190,7 +191,7 @@ func runSender(ctx context.Context, ha host.Host, targetPeer string) {
 		return
 	}
 
-	log.Printf("read reply: %q\n", out)
+	log.Printf("thrid parth read: %q\n", out)
 }
 
 // doEcho reads a line of data a stream and writes it back
@@ -202,6 +203,6 @@ func doEcho(s network.Stream) error {
 	}
 
 	log.Printf("read: %s", str)
-	_, err = s.Write([]byte(str))
+	_, err = s.Write([]byte("@" + str + " \r\n  不行的哟"))
 	return err
 }

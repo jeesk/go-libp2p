@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"time"
 
@@ -37,15 +38,13 @@ func run() {
 	// Now, normally you do not just want a simple host, you want
 	// that is fully configured to best support your p2p application.
 	// Let's create a second host setting some more options.
-
+	// ed25519 比ras qq更加先进。
 	// Set your own keypair
-	priv, _, err := crypto.GenerateKeyPair(
-		crypto.Ed25519, // Select your key type. Ed25519 are nice short
-		-1,             // Select key length when possible (i.e. RSA).
-	)
+	priv, _, err := crypto.GenerateKeyPair(0, 2048)
 	if err != nil {
 		panic(err)
 	}
+	fmt.Println("key:", priv.GetPublic())
 
 	var idht *dht.IpfsDHT
 

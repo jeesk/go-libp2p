@@ -101,6 +101,7 @@ node js {
 2
 node {
 }
+node js
 public class Demo {
 public class Student {
   String name;

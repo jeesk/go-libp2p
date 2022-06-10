@@ -17,8 +17,8 @@ func main() {
 		log.Printf("Failed to create h1: %v", err)
 		return
 	}
-	releyAddr, err := peer.AddrInfoFromString("/ip4/192.168.1.23/tcp/7676/ipfs/QmZLwcrA4NLWUehrrh6fjC8xunUd7uv1yUbDxkyNYmdzKZ")
-	h3, err3 := peer.AddrInfoFromString("/ip6/240e:36a:1490:f100::8a0/tcp/32863/ipfs/QmTq7Ej4gJQT4kchfo1EBu9tMpKEhZNEQQRwJP9A2AZuuU")
+	releyAddr, err := peer.AddrInfoFromString("/ip4/192.168.1.23/tcp/7676/ipfs/QmUmAa4mS2TTobn25jPeN4uw1B5JCnSRcNpva51KG2Tr7W")
+	h3, err3 := peer.AddrInfoFromString("/ip6/240e:36a:1490:f100::8a0/tcp/32863/ipfs/QmcdVZDYncUAj9by4yAxjtiVw5PT9BYrJRyeYBnVNjd7Xk")
 
 	// h1 和h3 连接到h2
 	// Connect both h1 and h3 to h2, but not to each other

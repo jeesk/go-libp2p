@@ -22,7 +22,7 @@ func run() {
 		return
 	}
 	fmt.Println()
-	releyAddr, err := peer.AddrInfoFromString("/ip4/192.168.1.23/tcp/7676/ipfs/QmZLwcrA4NLWUehrrh6fjC8xunUd7uv1yUbDxkyNYmdzKZ")
+	releyAddr, err := peer.AddrInfoFromString("/ip4/192.168.1.23/tcp/7676/ipfs/QmUmAa4mS2TTobn25jPeN4uw1B5JCnSRcNpva51KG2Tr7W")
 
 	if err := server.Connect(context.Background(), *releyAddr); err != nil {
 		log.Printf("Failed to connect server and h2: %v", err)

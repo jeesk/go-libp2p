@@ -12,6 +12,7 @@ require (
 	github.com/libp2p/go-libp2p-discovery v0.6.0
 	github.com/libp2p/go-libp2p-kad-dht v0.15.0
 	github.com/libp2p/go-libp2p-swarm v0.11.0
+	github.com/linakesi/lnksutils v0.0.0-20211111115441-4b6a6fffd283
 	github.com/multiformats/go-multiaddr v0.5.0
 	github.com/urfave/cli v1.22.2
 )

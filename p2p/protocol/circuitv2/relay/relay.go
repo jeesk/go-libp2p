@@ -118,6 +118,7 @@ func (r *Relay) Close() error {
 	return nil
 }
 
+// 中继处理stream 的方法
 func (r *Relay) handleStream(s network.Stream) {
 	log.Infof("new relay stream from: %s", s.Conn().RemotePeer())
 

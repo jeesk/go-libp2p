@@ -89,12 +89,6 @@ informed by Go's own [security policy](https://go.dev/security).
 111111
 新增内容
 新增内容2
-node js {
-
-
-}
-1
-2
 
 public class Demo {
   String name;

@@ -90,7 +90,9 @@ const (
 )
 
 var HopMessage_Type_name = map[int32]string{
+	// 预订
 	0: "RESERVE",
+	// 连接
 	1: "CONNECT",
 	2: "STATUS",
 }

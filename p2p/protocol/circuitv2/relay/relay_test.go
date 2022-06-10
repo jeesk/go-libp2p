@@ -97,12 +97,16 @@ func TestBasicRelay(t *testing.T) {
 	defer cancel()
 
 	hosts, upgraders := getNetHosts(t, ctx, 3)
+	relayServer := hosts[1]
+	boxServer := hosts[0]
+	mobileClient := hosts[2]
+
 	// 增加p2p t网络配置
-	addTransport(t, hosts[0], upgraders[0]) //  add transation
-	addTransport(t, hosts[2], upgraders[2])
+	addTransport(t, boxServer, upgraders[0]) //  add transation
+	addTransport(t, mobileClient, upgraders[2])
 
 	rch := make(chan []byte, 1)
-	hosts[0].SetStreamHandler("test", func(s network.Stream) {
+	boxServer.SetStreamHandler("test", func(s network.Stream) {
 		defer s.Close()
 		defer close(rch)
 
@@ -122,17 +126,19 @@ func TestBasicRelay(t *testing.T) {
 		rch <- buf[:nread]
 	})
 
-	r, err := relay.New(hosts[1])
+	r, err := relay.New(relayServer) /*	relay.WithACL(nil),
+		relay.WithResources(relayv1.DefaultResources())*/
+
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer r.Close()
 
-	connect(t, hosts[0], hosts[1])
-	connect(t, hosts[1], hosts[2])
+	connect(t, boxServer, relayServer)
+	connect(t, relayServer, mobileClient)
 
-	rinfo := hosts[1].Peerstore().PeerInfo(hosts[1].ID())
-	rsvp, err := client.Reserve(ctx, hosts[0], rinfo)
+	rinfo := relayServer.Peerstore().PeerInfo(relayServer.ID())
+	rsvp, err := client.Reserve(ctx, boxServer, rinfo)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -141,17 +147,17 @@ func TestBasicRelay(t *testing.T) {
 		t.Fatal("no reservation voucher")
 	}
 
-	raddr, err := ma.NewMultiaddr(fmt.Sprintf("/p2p/%s/p2p-circuit/p2p/%s", hosts[1].ID(), hosts[0].ID()))
+	raddr, err := ma.NewMultiaddr(fmt.Sprintf("/p2p/%s/p2p-circuit/p2p/%s", relayServer.ID(), boxServer.ID()))
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	err = hosts[2].Connect(ctx, peer.AddrInfo{ID: hosts[0].ID(), Addrs: []ma.Multiaddr{raddr}})
+	err = mobileClient.Connect(ctx, peer.AddrInfo{ID: boxServer.ID(), Addrs: []ma.Multiaddr{raddr}})
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	conns := hosts[2].Network().ConnsToPeer(hosts[0].ID())
+	conns := mobileClient.Network().ConnsToPeer(boxServer.ID())
 	if len(conns) != 1 {
 		t.Fatalf("expected 1 connection, but got %d", len(conns))
 	}
@@ -159,7 +165,7 @@ func TestBasicRelay(t *testing.T) {
 		t.Fatal("expected transient connection")
 	}
 
-	s, err := hosts[2].NewStream(network.WithUseTransient(ctx, "test"), hosts[0].ID(), "test")
+	s, err := mobileClient.NewStream(network.WithUseTransient(ctx, "test"), boxServer.ID(), "test")
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -26,7 +26,8 @@ var (
 type Conn struct {
 	stream network.Stream
 	remote peer.AddrInfo
-	stat   network.ConnStats
+
+	stat network.ConnStats
 
 	client *Client
 }

@@ -92,3 +92,9 @@ informed by Go's own [security policy](https://go.dev/security).
 
 1
 2
+
+public class Demo {
+  String name;
+  Integer age;
+
+}

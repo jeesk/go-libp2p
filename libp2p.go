@@ -16,6 +16,7 @@ type Option = config.Option
 // ChainOptions chains multiple options into a single option.
 func ChainOptions(opts ...Option) Option {
 	return func(cfg *Config) error {
+
 		for _, opt := range opts {
 			if opt == nil {
 				continue

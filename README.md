@@ -102,7 +102,7 @@ node js {
 node {
 }
 public class Demo {
-public class Person {
+public class Student {
   String name;
   Integer age;
 }

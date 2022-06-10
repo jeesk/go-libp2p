@@ -79,7 +79,7 @@ There's a few things you can do right now to help out:
 We 12332141234  test against and support the two most recent major releases of Go. This is
 
 12341234
-
+12341234
 We test against and support the two most recent major releases of Go. This is
 informed by Go's own [security policy](https://go.dev/security).
 12341234

@@ -27,6 +27,7 @@ import (
 	ma "github.com/multiformats/go-multiaddr"
 )
 
+// https://github.com/libp2p/specs/blob/master/relay/circuit-v2.md
 func getNetHosts(t *testing.T, ctx context.Context, n int) (hosts []host.Host, upgraders []transport.Upgrader) {
 	for i := 0; i < n; i++ {
 		privk, pubk, err := crypto.GenerateKeyPair(crypto.Ed25519, 0)
@@ -69,10 +70,16 @@ func getNetHosts(t *testing.T, ctx context.Context, n int) (hosts []host.Host, u
 		if err != nil {
 			t.Fatal(err)
 		}
+		if i == 1 {
+			h := bhost.NewBlankHost(netw)
 
-		h := bhost.NewBlankHost(netw)
+			hosts = append(hosts, h)
+		} else {
+			h := bhost.NewBlankHost(netw)
 
-		hosts = append(hosts, h)
+			hosts = append(hosts, h)
+		}
+
 	}
 
 	return hosts, upgraders
@@ -92,6 +99,22 @@ func addTransport(t *testing.T, h host.Host, upgrader transport.Upgrader) {
 	}
 }
 
+type MyFiflter struct {
+}
+
+type MyLimit struct {
+}
+
+func (fi MyFiflter) AllowReserve(p peer.ID, a ma.Multiaddr) bool {
+	return true
+}
+
+// AllowConnect returns true if a source peer, with a given multiaddr is allowed to connect
+// to a destination peer.
+func (fi MyFiflter) AllowConnect(src peer.ID, srcAddr ma.Multiaddr, dest peer.ID) bool {
+	return true
+}
+
 func TestBasicRelay(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -109,7 +132,26 @@ func TestBasicRelay(t *testing.T) {
 	boxServer.SetStreamHandler("test", func(s network.Stream) {
 		defer s.Close()
 		defer close(rch)
+	addTransport(t, hosts[0], upgraders[0])
+	addTransport(t, hosts[2], upgraders[2])
+	rch := make(chan []byte, 1)
+	relayServer := hosts[1]
+	boxServer := hosts[0]
+	mobileClient := hosts[2]
+	fmt.Println("relayServer :" + relayServer.ID().Pretty())
+	fmt.Println("boxServer :" + boxServer.ID().Pretty())
+	fmt.Println("mobileClient :" + boxServer.ID().Pretty())
+	boxServer.SetStreamHandler("test", func(s network.Stream) {
+		defer func() {
+			s.Close()
+			fmt.Println("close")
+		}()
+		defer func() {
+			fmt.Println("close")
+			close(rch)
+		}()
 
+		// box 收到消息
 		buf := make([]byte, 1024)
 		nread := 0
 		for nread < len(buf) {
@@ -122,12 +164,16 @@ func TestBasicRelay(t *testing.T) {
 				t.Fatal(err)
 			}
 		}
-
+		fmt.Println(string(buf[:nread]))
 		rch <- buf[:nread]
 	})
 
 	r, err := relay.New(relayServer) /*	relay.WithACL(nil),
 		relay.WithResources(relayv1.DefaultResources())*/
+	r, err := relay.New(relayServer,
+		relay.WithResources(relay.DefaultResources()),
+		relay.WithLimit(relay.DefaultLimit()),
+		relay.WithACL(&MyFiflter{}))
 
 	if err != nil {
 		t.Fatal(err)
@@ -136,6 +182,7 @@ func TestBasicRelay(t *testing.T) {
 
 	connect(t, boxServer, relayServer)
 	connect(t, relayServer, mobileClient)
+	connect(t, mobileClient, relayServer)
 
 	rinfo := relayServer.Peerstore().PeerInfo(relayServer.ID())
 	rsvp, err := client.Reserve(ctx, boxServer, rinfo)
@@ -156,6 +203,7 @@ func TestBasicRelay(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	conns := mobileClient.Network().ConnsToPeer(boxServer.ID())
 
 	conns := mobileClient.Network().ConnsToPeer(boxServer.ID())
 	if len(conns) != 1 {
@@ -171,15 +219,18 @@ func TestBasicRelay(t *testing.T) {
 	}
 
 	msg := []byte("relay works!")
-	nwritten, err := s.Write(msg)
+
+	s.Write(msg)
+
 	if err != nil {
 		t.Fatal(err)
 	}
-	if nwritten != len(msg) {
+	/*	if nwritten != len(msg) {
 		t.Fatalf("expected to write %d bytes, but wrote %d instead", len(msg), nwritten)
-	}
+	}*/
 	s.CloseWrite()
 
+	// confirm recivied msg
 	got := <-rch
 	if !bytes.Equal(msg, got) {
 		t.Fatalf("Wrong echo; expected %s but got %s", string(msg), string(got))
@@ -201,6 +252,7 @@ func TestRelayLimitTime(t *testing.T) {
 
 		buf := make([]byte, 1024)
 		_, err := s.Read(buf)
+
 		rch <- err
 	})
 
@@ -247,6 +299,7 @@ func TestRelayLimitTime(t *testing.T) {
 
 	time.Sleep(2 * time.Second)
 	n, err := s.Write([]byte("should be closed"))
+	s.Write([]byte("should be closed2"))
 	if n > 0 {
 		t.Fatalf("expected to write 0 bytes, wrote %d", n)
 	}

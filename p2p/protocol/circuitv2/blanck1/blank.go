@@ -1,4 +1,4 @@
-package blankhost
+package blank1
 
 import (
 	"context"
@@ -216,13 +216,9 @@ func (bh *BlankHost) newStreamHandler(s network.Stream) {
 		s.Reset()
 		return
 	}
-
 	s.SetProtocol(protocol.ID(protoID))
-	s.Stat()
-	fmt.Printf("newStreamHandler from: %s , dest : %s \n", s.Conn().RemotePeer(), s.ID())
-	go func() {
-		handle(protoID, s)
-	}()
+
+	go handle(protoID, s)
 }
 
 // TODO: i'm not sure this really needs to be here

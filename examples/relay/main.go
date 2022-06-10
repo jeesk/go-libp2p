@@ -6,8 +6,11 @@ import (
 	"log"
 
 	"github.com/libp2p/go-libp2p"
+	circuit "github.com/libp2p/go-libp2p-circuit"
 	"github.com/libp2p/go-libp2p-core/network"
 	"github.com/libp2p/go-libp2p-core/peer"
+	swarm "github.com/libp2p/go-libp2p-swarm"
+	ma "github.com/multiformats/go-multiaddr"
 )
 
 func main() {
@@ -28,6 +31,7 @@ func run() {
 		log.Printf("Failed to connect server and h2: %v", err)
 		return
 	}
+	_, err = circuit.NewRelay(context.Background(), h2, nil, circuit.OptHop)
 
 	for _, value := range server.Addrs() {
 		fmt.Printf("%s/ipfs/%s        %s\n", value, server.ID(), server.ID().Pretty())

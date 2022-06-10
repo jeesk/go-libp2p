@@ -121,6 +121,7 @@ func (r *Relay) Close() error {
 // 中继处理stream 的方法
 func (r *Relay) handleStream(s network.Stream) {
 	log.Infof("new relay stream from: %s", s.Conn().RemotePeer())
+	fmt.Printf("new relay stream from: %s , dest : %s \n", s.Conn().RemotePeer(), s.ID())
 
 	if err := s.Scope().SetService(ServiceName); err != nil {
 		log.Debugf("error attaching stream to relay service: %s", err)
@@ -141,7 +142,7 @@ func (r *Relay) handleStream(s network.Stream) {
 	s.SetReadDeadline(time.Now().Add(StreamTimeout))
 
 	var msg pbv2.HopMessage
-
+	//fmt.Printf("msg: %v \n", msg)
 	err := rd.ReadMsg(&msg)
 	if err != nil {
 		r.handleError(s, pbv2.Status_MALFORMED_MESSAGE)

@@ -55,6 +55,7 @@ type completion struct {
 // upgrader to perform connection upgrades.
 func New(h host.Host, upgrader transport.Upgrader) (*Client, error) {
 	cl := &Client{
+
 		host:        h,
 		upgrader:    upgrader,
 		incoming:    make(chan accept),

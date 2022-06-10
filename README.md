@@ -96,5 +96,8 @@ informed by Go's own [security policy](https://go.dev/security).
 public class Demo {
   String name;
   Integer age;
-
+}
+type Person struct {
+ name string
+ age int32
 }

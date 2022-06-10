@@ -70,9 +70,9 @@ Guidelines:
 - have fun!
 
 There's a few things you can do right now to help out:
- - Go through the modules below and **check out existing issues**. This would be especially useful for modules in active development. Some knowledge of IPFS/libp2p may be required, as well as the infrasture behind it - for instance, you may need to read up on p2p and more complex operations like muxing to be able to help technically.
- - **Perform code reviews**.
- - **Add tests**. There can never be enough tests.
+- Go through the modules below and **check out existing issues**. This would be especially useful for modules in active development. Some knowledge of IPFS/libp2p may be required, as well as the infrasture behind it - for instance, you may need to read up on p2p and more complex operations like muxing to be able to help technically.
+- **Perform code reviews**.
+- **Add tests**. There can never be enough tests.
 
 ## Supported Go Versions
 

@@ -56,7 +56,7 @@ func handleReturnValue(out []reflect.Value) (interface{}, error) {
 				return nil, fmt.Errorf("unspecified error")
 			}
 		}
-
+		// value.Interface() 其实就是 返回一个接口类型
 		return tpt.Interface(), nil
 	default:
 		panic("expected 1 or 2 return values from transport constructor")
@@ -97,7 +97,9 @@ func makeConstructor(
 	tptType reflect.Type,
 	argTypes map[reflect.Type]constructor,
 ) (func(host.Host, *tptu.Upgrader) (interface{}, error), error) {
+
 	v := reflect.ValueOf(tpt)
+
 	// avoid panicing on nil/zero value.
 	if v == (reflect.Value{}) {
 		return nil, fmt.Errorf("expected a transport or transport constructor, got a %T", tpt)
@@ -106,11 +108,12 @@ func makeConstructor(
 	if t.Kind() != reflect.Func {
 		return nil, fmt.Errorf("expected a transport or transport constructor, got a %T", tpt)
 	}
-
+	// 检查输出类型是否一致
 	if err := checkReturnType(t, tptType); err != nil {
 		return nil, err
 	}
 
+	// 创建参数设置
 	argConstructors, err := makeArgumentConstructors(t, argTypes)
 	if err != nil {
 		return nil, err

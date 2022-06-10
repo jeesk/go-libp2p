@@ -1,4 +1,4 @@
-# go-libp2p release notes
+_# go-libp2p release notes
 
 ## 6.0.0
 
@@ -47,7 +47,7 @@ under-the-covers overhead.
 However, we do hope to improve this and get even *better* bandwidth metrics than
 we did before. See [libp2p/go-libp2p-transport#31][] for details.
 
-[libp2p/go-libp2p-transport#31]: https://github.com/libp2p/go-libp2p-transport/issues/31
+[libp2p/go-libp2p-transport#31]: https://github.com/libp2p/go-libp2p-transport/issu es/31
 
 #### Notifications
 
@@ -301,4 +301,4 @@ new security framework is now as simple as:
 
 [example:echo]: https://github.com/libp2p/go-libp2p-examples/tree/master/echo
 
-[doc:go-libp2p-transport]: https://godoc.org/github.com/libp2p/go-libp2p-transport
+[doc:go-libp2p-transport]: https://godoc.org/github.com/libp2p/go-libp2p-transport_

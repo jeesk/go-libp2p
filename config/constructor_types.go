@@ -17,6 +17,8 @@ import (
 	mux "github.com/libp2p/go-stream-muxer"
 )
 
+// 构造器配置类
+
 var (
 	// interfaces
 	hostType      = reflect.TypeOf((*host.Host)(nil)).Elem()
@@ -35,7 +37,9 @@ var (
 	upgraderType = reflect.TypeOf((*tptu.Upgrader)(nil))
 )
 
+//Reflect.Type 和函数的映射关系
 var argTypes = map[reflect.Type]constructor{
+	// 类型和构造器的映射
 	upgraderType:  func(h host.Host, u *tptu.Upgrader) interface{} { return u },
 	hostType:      func(h host.Host, u *tptu.Upgrader) interface{} { return h },
 	networkType:   func(h host.Host, u *tptu.Upgrader) interface{} { return h.Network() },
@@ -49,9 +53,12 @@ var argTypes = map[reflect.Type]constructor{
 	pstoreType:    func(h host.Host, u *tptu.Upgrader) interface{} { return h.Peerstore() },
 }
 
+// 返回类型和对应的构造器映射
 func newArgTypeSet(types ...reflect.Type) map[reflect.Type]constructor {
 	result := make(map[reflect.Type]constructor, len(types))
+
 	for _, ty := range types {
+		// 通过类型获取到函数，最后设置到返回值中去。
 		c, ok := argTypes[ty]
 		if !ok {
 			panic(fmt.Sprintf("missing constructor for type %s", ty))

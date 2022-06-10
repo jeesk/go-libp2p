@@ -12,12 +12,14 @@ import (
 	yamux "github.com/whyrusleeping/go-smux-yamux"
 )
 
+// 多路复用构造器测试
+
 func TestMuxerSimple(t *testing.T) {
-	// single
-	_, err := MuxerConstructor(func(_ peer.ID) mux.Transport { return nil })
+	_, err := MuxerConstructor(func(asdf peer.ID) mux.Transport { return nil })
 	if err != nil {
 		t.Fatal(err)
 	}
+
 }
 
 func TestMuxerByValue(t *testing.T) {
@@ -26,8 +28,11 @@ func TestMuxerByValue(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func tst(_ peer.ID, _ peer.ID) mux.Transport { return nil }
+
 func TestMuxerDuplicate(t *testing.T) {
-	_, err := MuxerConstructor(func(_ peer.ID, _ peer.ID) mux.Transport { return nil })
+	_, err := MuxerConstructor(tst)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -53,7 +53,7 @@ func getNetHosts(t *testing.T, ctx context.Context, n int) (hosts []host.Host, u
 		if err != nil {
 			t.Fatal(err)
 		}
-
+		// 带宽设置
 		upgrader := swarmt.GenUpgrader(t, netw)
 		upgraders = append(upgraders, upgrader)
 
@@ -97,7 +97,8 @@ func TestBasicRelay(t *testing.T) {
 	defer cancel()
 
 	hosts, upgraders := getNetHosts(t, ctx, 3)
-	addTransport(t, hosts[0], upgraders[0])
+	// 增加p2p t网络配置
+	addTransport(t, hosts[0], upgraders[0]) //  add transation
 	addTransport(t, hosts[2], upgraders[2])
 
 	rch := make(chan []byte, 1)

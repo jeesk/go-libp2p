@@ -79,6 +79,7 @@ func NewProxyService(h host.Host, proxyAddr ma.Multiaddr, dest peer.ID) *ProxySe
 // to our protocol. The streams should contain an HTTP request which we need
 // to parse, make on behalf of the original node, and then write the response
 // on the stream, before closing it.
+// 代理服务器处理的内容
 func streamHandler(stream network.Stream) {
 	// Remember to close the stream when we are done.
 	defer stream.Close()
@@ -143,6 +144,7 @@ func (p *ProxyService) Serve() {
 // ServeHTTP opens a stream to the dest peer for every HTTP request.
 // Streams are multiplexed over single connections so, unlike connections
 // themselves, they are cheap to create and dispose of.
+//
 func (p *ProxyService) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	fmt.Printf("proxying request for %s to peer %s\n", r.URL, p.dest.Pretty())
 	// We need to send the request to the remote libp2p peer, so
@@ -155,7 +157,7 @@ func (p *ProxyService) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer stream.Close()
-
+	// 请求写入到流中
 	// r.Write() writes the HTTP request to the stream.
 	err = r.Write(stream)
 	if err != nil {
@@ -166,7 +168,7 @@ func (p *ProxyService) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Now we read the response that was sent from the dest
-	// peer
+	// 读取代理服务器的响应。
 	buf := bufio.NewReader(stream)
 	resp, err := http.ReadResponse(buf, r)
 	if err != nil {
@@ -249,6 +251,7 @@ func main() {
 	flag.Parse()
 
 	// If we have a destination peer we will start a local server
+	// proxy server
 	if *destPeer != "" {
 		// We use p2pport+1 in order to not collide if the user
 		// is running the remote peer locally on that port
@@ -263,6 +266,7 @@ func main() {
 		proxy := NewProxyService(host, proxyAddr, destPeerID)
 		proxy.Serve() // serve hangs forever
 	} else {
+		// start proxy server
 		host := makeRandomHost(*p2pport)
 		// In this case we only need to make sure our host
 		// knows how to handle incoming proxied requests from

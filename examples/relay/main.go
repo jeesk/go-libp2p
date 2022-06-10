@@ -8,9 +8,6 @@ import (
 	"github.com/libp2p/go-libp2p"
 	"github.com/libp2p/go-libp2p-core/network"
 	"github.com/libp2p/go-libp2p-core/peer"
-
-	swarm "github.com/libp2p/go-libp2p-swarm"
-	ma "github.com/multiformats/go-multiaddr"
 )
 
 func main() {
@@ -18,81 +15,31 @@ func main() {
 }
 
 func run() {
-	// Create three libp2p hosts, enable relay client capabilities on all
-	// of them.
-
-	// Tell the host use relays
-	h1, err := libp2p.New(libp2p.EnableRelay())
+	fmt.Println("box started")
+	server, err := libp2p.New(libp2p.ListenAddrs(), libp2p.EnableRelay())
 	if err != nil {
-		log.Printf("Failed to create h1: %v", err)
+		log.Printf("Failed to create server: %v", err)
+		return
+	}
+	fmt.Println()
+	releyAddr, err := peer.AddrInfoFromString("/ip4/192.168.1.23/tcp/7676/ipfs/QmZLwcrA4NLWUehrrh6fjC8xunUd7uv1yUbDxkyNYmdzKZ")
+
+	if err := server.Connect(context.Background(), *releyAddr); err != nil {
+		log.Printf("Failed to connect server and h2: %v", err)
 		return
 	}
 
-	h3, err := libp2p.New(libp2p.ListenAddrs(), libp2p.EnableRelay())
-	if err != nil {
-		log.Printf("Failed to create h3: %v", err)
-		return
-	}
-	fromString, err := peer.AddrInfoFromString("/ip4/148.70.94.33/tcp/7676/ipfs/QmaheaQuCUKEYMfS1pp3BA1wF4Kw3cnRF3TqeqyNJxMUrg")
-
-	// h1 和h3 连接到h2
-	// Connect both h1 and h3 to h2, but not to each other
-	if err := h1.Connect(context.Background(), *fromString); err != nil {
-		log.Printf("Failed to connect h1 and h2: %v", err)
-		return
-	}
-	if err := h3.Connect(context.Background(), *fromString); err != nil {
-		log.Printf("Failed to connect h3 and h2: %v", err)
-		return
+	for _, value := range server.Addrs() {
+		fmt.Printf("%s/ipfs/%s        %s\n", value, server.ID(), server.ID().Pretty())
 	}
 
-	// Now, to test things, let's set up a protocol handler on h3
-	h3.SetStreamHandler("/cats", func(s network.Stream) {
+	server.SetStreamHandler("/cats", func(s network.Stream) {
 		log.Println("Meow! It worked!")
 		buf := make([]byte, 1024)
 		s.Read(buf)
 		fmt.Println(string(buf[:]))
 		s.Close()
 	})
+	select {}
 
-	// h1 send data to h3
-	_, err = h1.NewStream(context.Background(), h3.ID(), "/cats")
-	if err == nil {
-		log.Println("Didnt actually expect to get a stream here. What happened?")
-		return
-	}
-	log.Printf("Okay, no connection from h1 to h3: %v", err)
-	log.Println("Just as we suspected")
-
-	// Creates a relay address to h3 using h2 as the relay
-	relayaddr, err := ma.NewMultiaddr("/p2p/" + fromString.ID.Pretty() + "/p2p-circuit/ipfs/" + h3.ID().Pretty())
-	if err != nil {
-		log.Println(err)
-		return
-	}
-
-	// Since we just tried and failed to dial, the dialer system will, by default
-	// prevent us from redialing again so quickly. Since we know what we're doing, we
-	// can use this ugly hack (it's on our TODO list to make it a little cleaner)
-	// to tell the dialer "no, its okay, let's try this again"
-	h1.Network().(*swarm.Swarm).Backoff().Clear(h3.ID())
-
-	h3relayInfo := peer.AddrInfo{
-		ID:    h3.ID(),
-		Addrs: []ma.Multiaddr{relayaddr},
-	}
-	if err := h1.Connect(context.Background(), h3relayInfo); err != nil {
-		log.Printf("Failed to connect h1 and h3: %v", err)
-		return
-	}
-
-	// Woohoo! we're connected!
-	s, err := h1.NewStream(context.Background(), h3.ID(), "/cats")
-	if err != nil {
-		log.Println("huh, this should have worked: ", err)
-		return
-	}
-	i := []byte("hello im h1 ")
-	s.Write(i)
-	s.Read(make([]byte, 1)) // block until the handler closes the stream
 }

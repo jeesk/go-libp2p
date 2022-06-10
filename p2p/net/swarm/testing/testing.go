@@ -106,6 +106,7 @@ func DialTimeout(t time.Duration) Option {
 	}
 }
 
+// 传输协议生成器
 // GenUpgrader creates a new connection upgrader for use with this swarm.
 func GenUpgrader(t *testing.T, n *swarm.Swarm, opts ...tptu.Option) transport.Upgrader {
 	id := n.LocalPeer()

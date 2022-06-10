@@ -83,6 +83,7 @@ func WithResourceManager(m network.ResourceManager) Option {
 	}
 }
 
+//  swarm 多路复用连接
 // Swarm is a connection muxer, allowing connections to other peers to
 // be opened and closed, while still using the same Chan for all
 // communication. The Chan sends/receives Messages, which note the

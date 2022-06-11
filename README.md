@@ -99,6 +99,7 @@ node js {
 }
 1
 2
+<<<<<<< HEAD
 node {
 }
 node js
@@ -112,3 +113,9 @@ type Person struct {
  age int32
 }
 不要于
+
+type Person struct {
+ name string
+ age int32
+
+

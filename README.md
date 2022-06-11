@@ -89,17 +89,12 @@ informed by Go's own [security policy](https://go.dev/security).
 111111
 新增内容
 新增内容2
-<<<<<<< HEAD
-
-<<<<<<< HEAD
-=======
 node js {
 
 
 }
 1
 2
-<<<<<<< HEAD
 node {
 }
 node js
@@ -113,9 +108,9 @@ type Person struct {
  age int32
 }
 不要于
-
 type Person struct {
  name string
  age int32
 
 
+}

@@ -112,7 +112,7 @@ type Person struct {
  name string
  age int32
 
-
+use merge 
 }
 
 1111111111111111111  222

@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/metrics"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/libp2p/go-libp2p-core/sec/insecure"
@@ -14,39 +13,57 @@ import (
 	"github.com/libp2p/go-libp2p/p2p/net/swarm"
 	tptu "github.com/libp2p/go-libp2p/p2p/net/upgrader"
 	"github.com/libp2p/go-libp2p/p2p/protocol/circuitv2/relay"
+	util "github.com/libp2p/go-libp2p/p2p/protocol/circuitv2/util"
 	"github.com/libp2p/go-libp2p/p2p/transport/tcp"
 	ma "github.com/multiformats/go-multiaddr"
 )
 
+type MyFiflter struct {
+}
+
+type MyLimit struct {
+}
+
+func (fi MyFiflter) AllowReserve(p peer.ID, a ma.Multiaddr) bool {
+	return true
+}
+
+// AllowConnect returns true if a source peer, with a given multiaddr is allowed to connect
+// to a destination peer.
+func (fi MyFiflter) AllowConnect(src peer.ID, srcAddr ma.Multiaddr, dest peer.ID) bool {
+	return true
+}
+
 func main() {
 
-	privk, pubk, err := crypto.GenerateKeyPair(crypto.RSA, 2048)
-	if err != nil {
-		fmt.Println("创建私钥失败")
+	fmt.Println("relayServer started")
+	key, err2 := util.LoadOrCreatePrivateKey("/data/home/song/project/go-libp2p/p2p/protocol/circuitv2/relay/proxy/RelayServer.config")
+	if err2 != nil {
+		fmt.Print("创建privateKey faild ")
 		return
 	}
 
-	p, err := peer.IDFromPublicKey(pubk)
+	p, err := peer.IDFromPrivateKey(key)
 	if err != nil {
-		fmt.Println("获取peer 失败")
+		fmt.Println("get PrivateKey fail")
 		return
 	}
 
 	ps, err := pstoremem.NewPeerstore()
 	if err != nil {
-		fmt.Println("创建PeerStore 失败")
+		fmt.Println("create Peerstore faild")
 		return
 	}
-	err = ps.AddPrivKey(p, privk)
+	err = ps.AddPrivKey(p, key)
 	if err != nil {
-		fmt.Println("增加私钥 失败")
+		fmt.Println("addPrivateKey faild")
 		return
 	}
 
 	bwr := metrics.NewBandwidthCounter()
 	netw, err := swarm.NewSwarm(p, ps, swarm.WithMetrics(bwr))
 	if err != nil {
-		fmt.Println("创建swarm 失败")
+		fmt.Println("create swarm faild")
 		return
 	}
 	// 带宽设置
@@ -58,37 +75,37 @@ func main() {
 
 	stMuxer := msmux.NewBlankTransport()
 	stMuxer.AddTransport("/yamux/1.0.0", yamux.DefaultTransport)
-	u, err := tptu.New(secMuxer, stMuxer)
+	upgrader, err := tptu.New(secMuxer, stMuxer)
 
-	tpt, err := tcp.NewTCPTransport(u, nil)
+	tpt, err := tcp.NewTCPTransport(upgrader, nil)
 	if err != nil {
-		fmt.Println("创建swarm 失败")
+		fmt.Println("create tcp transport faild")
 		return
 	}
 	if err := netw.AddTransport(tpt); err != nil {
-		fmt.Println("创建swarm 失败")
+		fmt.Println("add Transport faild")
 		return
 	}
-
-	err = netw.Listen(ma.StringCast("/ip4/0.0.0.0/tcp/7676"))
-	if err != nil {
-		fmt.Println("创建swarm 失败")
-		return
-	}
-
-	host := bhost.NewBlankHost(netw)
-
-	for _, value := range host.Addrs() {
-		fmt.Printf("%s/ipfs/%s\n", value, peer.Encode(host.ID()))
-	}
-
-	_, err = relay.New(host) /*	relay.WithACL(nil),
-		relay.WithResources(relayv1.DefaultResources())*/
+	port := "7671"
+	ipv4 := "/ip4/0.0.0.0/tcp/" + port
+	//ipv6 := "/ip6/::/tcp/" + port
+	err = netw.Listen(ma.StringCast(ipv4))
 
 	if err != nil {
-		fmt.Println("创建中继服务器失败")
+		fmt.Println("listen faild")
 		return
 	}
+
+	relayHost := bhost.NewBlankHost(netw)
+	for _, value := range relayHost.Addrs() {
+		fmt.Printf("%s/ipfs/%s\n", value.String(), relayHost.ID().Pretty())
+	}
+	_, err = relay.New(relayHost,
+		relay.WithResources(relay.DefaultResources()),
+		relay.WithLimit(relay.DefaultLimit()),
+		relay.WithACL(&MyFiflter{}))
+
+	// defer r.Close()
 	select {}
 
 }

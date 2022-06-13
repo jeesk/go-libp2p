@@ -19,7 +19,7 @@ func init() {
 }
 
 type ReservationVoucher struct {
-	// Relay is the ID of the peer providing relay service
+	// Relay is the ID of the peer providing relay service  relay server
 	Relay peer.ID
 	// Peer is the ID of the peer receiving relay service through Relay
 	Peer peer.ID

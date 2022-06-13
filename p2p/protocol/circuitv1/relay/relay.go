@@ -319,7 +319,7 @@ func (r *Relay) handleHopStream(s network.Stream, msg *pb.CircuitRelay) {
 			cleanup()
 		}
 	}
-
+	// 统计流量
 	go r.relayConn(s, bs, src.ID, dest.ID, done)
 	go r.relayConn(bs, s, dest.ID, src.ID, done)
 }
@@ -351,6 +351,7 @@ func (r *Relay) relayConn(src, dest network.Stream, srcID, destID peer.ID, done 
 	defer pool.Put(buf)
 
 	count, err := io.CopyBuffer(dest, src, buf)
+
 	if err != nil {
 		log.Debugf("relay copy error: %s", err)
 		// Reset both.
@@ -362,6 +363,8 @@ func (r *Relay) relayConn(src, dest network.Stream, srcID, destID peer.ID, done 
 	}
 
 	log.Debugf("relayed %d bytes from %s to %s", count, srcID, destID)
+	log.Info("流量统计relayed %d bytes from %s to %s \n", count, srcID, destID)
+	fmt.Printf("流量统计 relayed %d bytes from %s to %s \n", count, srcID, destID)
 }
 
 func (r *Relay) handleCanHop(s network.Stream, msg *pb.CircuitRelay) {

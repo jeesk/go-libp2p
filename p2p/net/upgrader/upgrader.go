@@ -147,7 +147,7 @@ func (u *upgrader) upgrade(ctx context.Context, t transport.Transport, maconn ma
 	sconn, server, err := u.setupSecurity(ctx, conn, p, dir)
 	if err != nil {
 		conn.Close()
-		return nil, fmt.Errorf("failed to negotiate security protocol: %s", err)
+		return nil, fmt.Errorf("	failed to negotiate security protocol: %s", err)
 	}
 
 	// call the connection gater, if one is registered.

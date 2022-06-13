@@ -2,6 +2,7 @@ package relay
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"sync"
@@ -366,6 +367,7 @@ func (r *Relay) handleConnect(s network.Stream, msg *pbv2.HopMessage) {
 	response.Limit = r.makeLimitMsg(dest.ID)
 
 	wr = util.NewDelimitedWriter(s)
+	// 写消息
 	err = wr.WriteMsg(&response)
 	if err != nil {
 		log.Debugf("error writing relay response: %s", err)
@@ -395,6 +397,7 @@ func (r *Relay) handleConnect(s network.Stream, msg *pbv2.HopMessage) {
 		deadline := time.Now().Add(r.rc.Limit.Duration)
 		s.SetDeadline(deadline)
 		bs.SetDeadline(deadline)
+		// 统计流量
 		go r.relayLimited(s, bs, src, dest.ID, r.rc.Limit.Data, done)
 		go r.relayLimited(bs, s, dest.ID, src, r.rc.Limit.Data, done)
 	} else {
@@ -423,15 +426,101 @@ func (r *Relay) rmConn(p peer.ID) {
 	}
 }
 
-func (r *Relay) relayLimited(src, dest network.Stream, srcID, destID peer.ID, limit int64, done func()) {
-	defer done()
+func copyBuffer(dst io.Writer, src io.Reader, buf []byte) (written int64, err error) {
+	// If the reader has a WriteTo method, use it to do the copy.
+	// Avoids an allocation and a copy.
+	if wt, ok := src.(io.WriterTo); ok {
+		return wt.WriteTo(dst)
+	}
+	// Similarly, if the writer has a ReadFrom method, use it to do the copy.
+	if rt, ok := dst.(io.ReaderFrom); ok {
+		return rt.ReadFrom(src)
+	}
+	if buf == nil {
+		size := 32 * 1024
+		if l, ok := src.(*io.LimitedReader); ok && int64(size) > l.N {
+			if l.N < 1 {
+				size = 1
+			} else {
+				size = int(l.N)
+			}
+		}
+		buf = make([]byte, size)
+	}
+	/*	start := time.Now()
+		readData := 0
+		limitData := 2000*/
+	for {
 
+		nr, er := src.Read(buf)
+		//
+		//readData += nr
+		//costTime := time.Since(start).Milliseconds()
+		//
+		//// 如果消耗的时间小于1s
+		//
+		//if (1000 - costTime) > 0 {
+		//	// 如果读取的数据 rn 小于 128k, 继续读取
+		//	if readData < 128 {
+		//		// 就让继续读取呗
+		//	} else {
+		//		// 这1s内读取的数据超过128 kb， 休眠一下
+		//		time.Sleep(time.Duration(1000 - costTime))
+		//		/*休眠完成后， 清空一下限制数据和已经读取的数据*/
+		//		readData = 0
+		//	}
+		//} else {
+		//	// 没有剩余时间，最多读取128kb
+		//	// 重置一下 读取的数据和时间
+		//	start = time.Now()
+		//	readData = 0
+		//}
+
+		if nr > 0 {
+			// 向目标写入数据
+			nw, ew := dst.Write(buf[0:nr])
+			if nw < 0 || nr < nw {
+				nw = 0
+				if ew == nil {
+					ew = errors.New("invalid write result")
+				}
+			}
+			written += int64(nw)
+			if ew != nil {
+				err = ew
+				break
+			}
+			if nr != nw {
+				err = io.ErrShortWrite
+				break
+			}
+		}
+		if er != nil {
+			if er != io.EOF {
+				err = er
+			}
+			break
+		}
+	}
+	return written, err
+}
+
+func (r *Relay) relayLimited(src, dest network.Stream, srcID, destID peer.ID, limit int64, done func()) {
+	var count int64 = 0
+	defer done()
 	buf := pool.Get(r.rc.BufferSize)
-	defer pool.Put(buf)
+	defer func() {
+		pool.Put(buf)
+
+	}()
+	// 设置一次性读取多少数据
 
 	limitedSrc := io.LimitReader(src, limit)
-
-	count, err := io.CopyBuffer(dest, limitedSrc, buf)
+	start := time.Now()
+	count, err := copyBuffer(dest, limitedSrc, buf)
+	log.Debugf("relayed %d bytes from %s to %s", count, srcID, destID)
+	log.Info("流量统计relayLimited relayed %d bytes from %s to %s \n", count, srcID, destID)
+	fmt.Printf("流量统计relayLimited relayed %d bytes from %s to %s 耗时： %d \n", count, srcID, destID, time.Since(start))
 	if err != nil {
 		log.Debugf("relay copy error: %s", err)
 		// Reset both.
@@ -446,7 +535,6 @@ func (r *Relay) relayLimited(src, dest network.Stream, srcID, destID peer.ID, li
 		}
 	}
 
-	log.Debugf("relayed %d bytes from %s to %s", count, srcID, destID)
 }
 
 func (r *Relay) relayUnlimited(src, dest network.Stream, srcID, destID peer.ID, done func()) {
@@ -466,7 +554,8 @@ func (r *Relay) relayUnlimited(src, dest network.Stream, srcID, destID peer.ID, 
 		dest.CloseWrite()
 	}
 
-	log.Debugf("relayed %d bytes from %s to %s", count, srcID, destID)
+	log.Debugf("流量统计relayUnlimited %d bytes from %s to %s \n", count, srcID, destID)
+	fmt.Printf("流量统计relayUnlimited relayed %d bytes from %s to %s \n", count, srcID, destID)
 }
 
 func (r *Relay) handleError(s network.Stream, status pbv2.Status) {

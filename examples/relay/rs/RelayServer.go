@@ -10,11 +10,17 @@ import (
 
 func main() {
 
-	key, err2 := util.LoadOrCreatePrivateKey("/data/home/song/project/go-libp2p_source/examples/relay/rs/RelayServer.key")
+	key, err := util.LoadOrCreatePrivateKey("/data/home/song/project/go-libp2p/examples/relay/rs/RelayServer.config")
+	if err != nil {
+		fmt.Printf("创建privateKey 失败")
+		return
+	}
 
 	fmt.Println(" RelayServer started ...")
 	host, err := libp2p.New(
+		libp2p.Identity(key),
 		libp2p.DisableRelay(),
+		libp2p.EnableRelayService(),
 		libp2p.ListenAddrStrings("/ip4/0.0.0.0/tcp/7676"),
 	)
 	fmt.Println("relayserver id : %s", host.ID())

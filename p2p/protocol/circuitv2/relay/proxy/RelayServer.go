@@ -25,12 +25,14 @@ type MyLimit struct {
 }
 
 func (fi MyFiflter) AllowReserve(p peer.ID, a ma.Multiaddr) bool {
+	fmt.Printf("peerId(%s) AllowReserve \n", p.Pretty())
 	return true
 }
 
 // AllowConnect returns true if a source peer, with a given multiaddr is allowed to connect
 // to a destination peer.
 func (fi MyFiflter) AllowConnect(src peer.ID, srcAddr ma.Multiaddr, dest peer.ID) bool {
+	fmt.Printf("peerId(%s) AllowConnect  %s \n", src.String(), dest.String())
 	return true
 }
 

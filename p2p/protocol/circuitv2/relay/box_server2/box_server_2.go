@@ -3,21 +3,13 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/libp2p/go-libp2p-core/metrics"
+	"github.com/libp2p/go-libp2p"
 	"github.com/libp2p/go-libp2p-core/network"
 	"github.com/libp2p/go-libp2p-core/peer"
-	"github.com/libp2p/go-libp2p-core/sec/insecure"
-	"github.com/libp2p/go-libp2p-peerstore/pstoremem"
-	bhost "github.com/libp2p/go-libp2p/p2p/host/blank"
-	msmux "github.com/libp2p/go-libp2p/p2p/muxer/muxer-multistream"
-	"github.com/libp2p/go-libp2p/p2p/muxer/yamux"
-	csms "github.com/libp2p/go-libp2p/p2p/net/conn-security-multistream"
-	"github.com/libp2p/go-libp2p/p2p/net/swarm"
-	tptu "github.com/libp2p/go-libp2p/p2p/net/upgrader"
+	"github.com/libp2p/go-libp2p/config"
 	"github.com/libp2p/go-libp2p/p2p/protocol/circuitv2/client"
 	"github.com/libp2p/go-libp2p/p2p/protocol/circuitv2/util"
 	"github.com/libp2p/go-libp2p/p2p/transport/tcp"
-	ma "github.com/multiformats/go-multiaddr"
 	"io"
 	"io/ioutil"
 	"log"
@@ -28,71 +20,32 @@ func main() {
 	ctx := context.Background()
 	fmt.Println("box_server started")
 	key, err2 := util.LoadOrCreatePrivateKey("/data/home/song/project/go-libp2p/p2p/protocol/circuitv2/relay/box_server/box_server.config")
-	if err2 != nil {
-		fmt.Print("创建privateKey faild ")
-		return
-	}
-
-	p, err := peer.IDFromPrivateKey(key)
-	if err != nil {
-		fmt.Println("get PrivateKey fail")
-		return
-	}
-
-	ps, err := pstoremem.NewPeerstore()
-	if err != nil {
-		fmt.Println("create Peerstore faild")
-		return
-	}
-	err = ps.AddPrivKey(p, key)
-	if err != nil {
-		fmt.Println("addPrivateKey faild")
-		return
-	}
-
-	bwr := metrics.NewBandwidthCounter()
-	netw, err := swarm.NewSwarm(p, ps, swarm.WithMetrics(bwr))
-	if err != nil {
-		fmt.Println("create swarm faild")
-		return
-	}
-	// 带宽设置
-
-	id := netw.LocalPeer()
-	pk := netw.Peerstore().PrivKey(id)
-	secMuxer := new(csms.SSMuxer)
-	secMuxer.AddTransport(insecure.ID, insecure.NewWithIdentity(id, pk))
-
-	stMuxer := msmux.NewBlankTransport()
-	stMuxer.AddTransport("/yamux/1.0.0", yamux.DefaultTransport)
-	upgrader, err := tptu.New(secMuxer, stMuxer)
-
-	tpt, err := tcp.NewTCPTransport(upgrader, nil)
-	if err != nil {
-		fmt.Println("create tcp transport faild")
-		return
-	}
-	if err := netw.AddTransport(tpt); err != nil {
-		fmt.Println("add Transport faild")
-		return
-	}
-
 	port := "7672"
 	ipv4 := "/ip4/0.0.0.0/tcp/" + port
 	ipv6 := "/ip6/::/tcp/" + port
-	err = netw.Listen(ma.StringCast(ipv4), ma.StringCast(ipv6))
 
-	if err != nil {
+	options := make([]config.Option, 10)
+	options = append(options,
+		libp2p.EnableHolePunching(),
+		libp2p.ListenAddrStrings(ipv4, ipv6),
+		libp2p.NATPortMap(),
+		libp2p.Identity(key),
+		libp2p.ChainOptions(
+			libp2p.Transport(tcp.NewTCPTransport),
+		),
+	)
+	boxServerHost, err2 := libp2p.New(options...)
+
+	if err2 != nil {
 		fmt.Println("listen faild")
 		return
 	}
 
-	boxServerHost := bhost.NewBlankHost(netw)
-
-	if err := client.AddTransport(boxServerHost, upgrader); err != nil {
+	/*	if err := client.AddTransport(boxServerHost, upgrader); err != nil {
 		fmt.Println("addTransport  faild")
 		return
-	}
+	}*/
+
 	rch := make(chan []byte, 1)
 	boxServerHost.SetStreamHandler("test", func(s network.Stream) {
 		defer func() {
@@ -126,7 +79,8 @@ func main() {
 		rch <- buf[:nread]
 	})
 
-	relayServerAddr, err2 := peer.AddrInfoFromString("/ip4/172.18.0.1/tcp/7671/ipfs/QmaWomNyyYh9TbGkTLnPMBrSyKNZQbncxEyqH8sqgTLxn1")
+	relayServerAddr, err2 := peer.AddrInfoFromString("/ip4/148.70.94.33/tcp/7676/p2p/QmXTX2EsvCGU2Z8HKveLgb4uMVGC7WsfzXGGbEvofKJbfv")
+	//relayServerAddr, err2 := peer.AddrInfoFromString("/ip4/127.0.0.1/tcp/7671/ipfs/QmaWomNyyYh9TbGkTLnPMBrSyKNZQbncxEyqH8sqgTLxn1\n")
 
 	if err2 != nil {
 		fmt.Printf("get Addr faild %s \n", err2)

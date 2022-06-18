@@ -14,6 +14,7 @@ import (
 	rcmgr "github.com/libp2p/go-libp2p-resource-manager"
 )
 
+// 资源管理限制
 // SetDefaultServiceLimits sets the default limits for bundled libp2p services
 //
 // More specifically this sets the following limits:
@@ -105,6 +106,7 @@ func SetDefaultServiceLimits(limiter *rcmgr.BasicLimiter) {
 		limiter.DefaultServiceLimits.
 			WithMemoryLimit(1, 4<<20, 64<<20). // max 64MB service memory
 			WithStreamLimit(1024, 1024, 1024), // max 1024 streams - asymmetric
+
 		peerLimit(64, 64, 64))
 
 	// circuit protocols, both client and service

@@ -85,6 +85,7 @@ var DefaultEnableRelay = func(cfg *Config) error {
 	return cfg.Apply(EnableRelay())
 }
 
+// 设置资源管理器
 var DefaultResourceManager = func(cfg *Config) error {
 	// Default memory limit: 1/8th of total memory, minimum 128MB, maximum 1GB
 	limiter := rcmgr.NewDefaultLimiter()
